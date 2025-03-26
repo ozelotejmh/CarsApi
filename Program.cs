@@ -31,7 +31,7 @@ builder.Services.AddAuthentication(options =>
 // Configuración de Swagger con soporte para JWT
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "ApiPokemonListas", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "ApiCars", Version = "v1" });
 
     // Define el esquema de seguridad JWT
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
