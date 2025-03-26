@@ -1,11 +1,13 @@
 ﻿using CarsApi.Model;
 using CarsApi.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CarsApi.Controllers
 {
     [ApiController]
     [Route("api/cars")]
+    [Authorize]
     public class ControllerCars : ControllerBase
     {
         private readonly IControllerContext _context;

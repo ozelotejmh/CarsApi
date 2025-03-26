@@ -9,7 +9,6 @@ namespace CarsApi.Controllers
 {
     [Route("api/auth")]
     [ApiController]
-    [Authorize]
     public class AuthController : ControllerBase
     {
         private readonly IConfiguration _configuration;
