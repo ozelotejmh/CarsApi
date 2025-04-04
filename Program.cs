@@ -1,3 +1,5 @@
+﻿using Asp.Versioning;
+using Asp.Versioning.ApiExplorer;
 using CarsApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -9,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Clave secreta para firmar los tokens JWT
 var key = Encoding.ASCII.GetBytes("YourSuperSecretKeyWithAtLeast32Characters");
 
-// Configuraci�n de autenticaci�n JWT
+// ✅ Autenticación JWT
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -28,13 +30,38 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Configuraci�n de Swagger con soporte para JWT
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "ApiCars", Version = "v1" });
+// ✅ Versionado de la API
+builder.Services
+    .AddApiVersioning(options =>
+    {
+        options.DefaultApiVersion = new ApiVersion(1, 0);
+        options.AssumeDefaultVersionWhenUnspecified = true;
+        options.ReportApiVersions = true;
+        options.ApiVersionReader = new UrlSegmentApiVersionReader(); // ejemplo: /api/v1/controller
+    })
+    .AddMvc()
+    .AddApiExplorer(options =>
+    {
+        options.GroupNameFormat = "'v'VVV";
+        options.SubstituteApiVersionInUrl = true;
+    });
 
-    // Define el esquema de seguridad JWT
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+// ✅ Swagger con múltiples versiones + JWT
+builder.Services.AddSwaggerGen(options =>
+{
+    var provider = builder.Services.BuildServiceProvider()
+        .GetRequiredService<IApiVersionDescriptionProvider>();
+
+    foreach (var description in provider.ApiVersionDescriptions)
+    {
+        options.SwaggerDoc(description.GroupName, new OpenApiInfo
+        {
+            Title = $"ApiCars {description.ApiVersion}",
+            Version = description.GroupName
+        });
+    }
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "Introduce tu token JWT con el prefijo 'Bearer'. Ejemplo: Bearer {token}",
         Name = "Authorization",
@@ -43,8 +70,7 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "Bearer"
     });
 
-    // Aplica el esquema a todas las operaciones
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
             new OpenApiSecurityScheme
@@ -60,25 +86,35 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Add services to the container.
+// ✅ Controladores
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
-// Registro de la inyecci�n de dependencias para IControllerContext
+// ✅ Inyección de dependencias personalizada
 builder.Services.AddScoped<IControllerContext, ControllerContext>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ✅ Middleware
 if (app.Environment.IsDevelopment())
 {
+    var apiVersionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
+
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options =>
+    {
+        foreach (var description in apiVersionProvider.ApiVersionDescriptions)
+        {
+            options.SwaggerEndpoint(
+                $"/swagger/{description.GroupName}/swagger.json",
+                description.GroupName.ToUpperInvariant());
+        }
+    });
 }
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
